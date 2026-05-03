@@ -210,7 +210,7 @@ function NormalGame({
     [chess, currentViewIndex, isViewingHistory, positionHistory, revision]
   );
   const boardLastMove = isViewingHistory ? getHistoryMoveForView(history, currentViewIndex) : lastMove;
-  const boardOrientation = !bot && !isViewingHistory ? (chess.turn() === "w" ? "white" : "black") : orientation;
+  const boardOrientation = orientation;
   const legalMovesOverride = isChess960 && !isViewingHistory
     ? [
         ...(chess.moves({ verbose: true }) as Move[]).filter((move) => !move.flags.includes("k") && !move.flags.includes("q")),
