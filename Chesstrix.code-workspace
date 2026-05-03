@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../chesscom assets"
+		},
+		{
+			"path": "../chess_assets"
+		},
+		{
+			"path": "../puzzle"
+		}
+	],
+	"settings": {}
+}

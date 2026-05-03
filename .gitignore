@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dist-electron/
+*.log
+.env
+engines/stockfish/stockfish.exe
+engines/stockfish/stockfish
+cmake-build-debug/
+cpp/build/
+cpp/build-wasm/
+.idea/

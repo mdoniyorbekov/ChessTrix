@@ -1,0 +1,138 @@
+.button {
+  min-height: 48px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--color-text);
+  font-size: 16px;
+  font-weight: 700;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.button__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--icon-color, var(--color-accent-hover));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--icon-color, var(--color-accent)) 24%, transparent), color-mix(in srgb, var(--color-info) 16%, transparent));
+}
+
+.button--primary .button__icon {
+  --icon-color: #0f766e;
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.button--danger .button__icon {
+  --icon-color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.button:hover:not(:disabled) .button__icon {
+  filter: saturate(1.18) brightness(1.08);
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.button--primary {
+  background: var(--color-accent);
+  color: #07142c;
+}
+
+.button--primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.button--secondary {
+  background: color-mix(in srgb, var(--color-card) 86%, transparent);
+  border-color: var(--color-accent);
+}
+
+.button--secondary:hover:not(:disabled),
+.button--ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-card));
+}
+
+.button--ghost {
+  background: transparent;
+  border-color: var(--color-border);
+}
+
+.button--danger {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.card {
+  border-radius: 6px;
+  padding: 20px;
+  background: color-mix(in srgb, var(--color-card) 94%, transparent);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.18);
+}
+
+.card--interactive {
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.card--interactive:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-accent);
+}
+
+.badge {
+  min-height: 26px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  border: 1px solid transparent;
+}
+
+.badge--accent {
+  background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent) 70%, transparent);
+  color: var(--color-accent-hover);
+}
+
+.badge--info {
+  background: color-mix(in srgb, var(--color-info) 18%, transparent);
+  color: var(--color-info);
+}
+
+.badge--danger {
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--color-danger);
+}
+
+.badge--muted {
+  background: color-mix(in srgb, var(--color-muted) 12%, transparent);
+  color: var(--color-muted);
+}
+
+.badge--success {
+  background: color-mix(in srgb, var(--square-legal) 18%, transparent);
+  color: var(--square-legal);
+}

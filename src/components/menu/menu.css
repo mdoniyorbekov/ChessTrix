@@ -1,0 +1,231 @@
+.main-menu {
+  display: grid;
+  grid-template-columns: minmax(320px, 380px) minmax(620px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.menu-hero {
+  min-height: 418px;
+  border-radius: 6px;
+  padding: 28px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--color-panel) 95%, black), var(--color-card));
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
+}
+
+.menu-logo {
+  width: min(100%, 300px);
+  height: auto;
+  display: block;
+  border-radius: 6px;
+  background: #fff;
+  padding: 10px;
+  object-fit: contain;
+}
+
+.menu-hero p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 20px;
+}
+
+.menu-hero__actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.menu-grid,
+.mode-selection {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(300px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.mode-selection {
+  padding-top: 28px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.mode-card {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+}
+
+.mode-card__inner {
+  width: 100%;
+  min-height: 126px;
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  align-items: center;
+  overflow: hidden;
+  gap: 16px;
+  padding: 14px;
+}
+
+.mode-card__icon {
+  width: 112px;
+  height: 84px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+
+.mode-card__media {
+  width: 132px;
+  height: 92px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--mode-icon, var(--color-accent)) 20%, #ffffff), #e7ebf0);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-card__image {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  opacity: 0.12;
+  filter: grayscale(1);
+}
+
+.mode-card__media > svg {
+  width: 42px;
+  height: 42px;
+  color: var(--mode-icon, var(--color-accent));
+  filter: drop-shadow(0 6px 12px color-mix(in srgb, var(--mode-icon, var(--color-accent)) 32%, transparent));
+}
+
+.mode-card__copy {
+  min-width: 0;
+}
+
+.mode-card__icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.mode-card__media--two-player { --mode-icon: #22c55e; }
+.mode-card__media--play-with-bots { --mode-icon: #38bdf8; }
+.mode-card__media--puzzle-arena { --mode-icon: #f59e0b; }
+.mode-card__media--analysis { --mode-icon: #a78bfa; }
+.mode-card__media--archive-stats { --mode-icon: #60a5fa; }
+.mode-card__media--achievements { --mode-icon: #f472b6; }
+.mode-card__media--tournaments { --mode-icon: #eab308; }
+.mode-card__media--chess960 { --mode-icon: #14b8a6; }
+.mode-card__media--crazyhouse { --mode-icon: #ef4444; }
+.mode-card__media--4-player-chess { --mode-icon: #8b5cf6; }
+
+.mode-card h3 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  line-height: 1.12;
+}
+
+.mode-card p {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.35;
+  font-size: 15px;
+}
+
+.menu-note {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  color: var(--color-muted);
+}
+
+.time-control-card {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 70px;
+}
+
+.time-control-card > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.time-control-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.time-control-pills button {
+  min-height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-muted);
+  padding: 0 12px;
+  font-weight: 800;
+}
+
+.time-control-pills button.active {
+  border-color: var(--color-accent);
+  color: var(--color-accent-hover);
+  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-card));
+}
+
+.menu-note strong {
+  color: var(--color-text);
+}
+
+@media (max-width: 1160px) {
+  .main-menu {
+    grid-template-columns: 1fr;
+  }
+
+  .menu-hero {
+    min-height: 260px;
+  }
+
+  .menu-grid,
+  .mode-selection {
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .menu-grid,
+  .mode-selection {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-card__inner {
+    grid-template-columns: 112px minmax(0, 1fr);
+  }
+
+  .mode-card__media {
+    width: 112px;
+    height: 82px;
+  }
+}

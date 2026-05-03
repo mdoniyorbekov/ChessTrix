@@ -1,0 +1,15 @@
+Tabler Icons
+Source: https://github.com/tabler/tabler-icons
+License: MIT
+
+Downloaded SVG files:
+- two-player.svg: crown
+- bots.svg: robot
+- puzzles.svg: puzzle
+- analysis.svg: activity
+- archive.svg: archive
+- achievements.svg: award
+- tournaments.svg: trophy
+- chess960.svg: chess-king
+- crazyhouse.svg: brain
+- four-player.svg: device-gamepad-2
