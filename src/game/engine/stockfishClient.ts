@@ -44,6 +44,7 @@ export async function requestAnalysis(
     searchMoves?: string[];
     requestId?: string;
     moveIndex?: number;
+    timeoutMs?: number;
   } = {}
 ): Promise<{ available: boolean; analysis?: EngineAnalysis; message?: string }> {
   if (!window.chesstrixEngine) return { available: false, message: missingMessage };

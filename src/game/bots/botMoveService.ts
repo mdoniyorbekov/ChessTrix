@@ -1,5 +1,5 @@
 import { Chess } from "chess.js";
-import { parseUciMove } from "../engine/uciParser";
+import { isUciMove, parseUciMove } from "../engine/uciParser";
 import { requestBestMove } from "../engine/stockfishClient";
 import type { BotProfile } from "./botProfiles";
 
@@ -17,7 +17,7 @@ export async function getBotMove(chess: Chess, bot: BotProfile, chess960 = false
     { moveTimeMs: bot.moveTimeMs, chess960, elo: bot.elo, skillLevel: bot.skillLevel }
   ).catch(() => null);
 
-  if (response?.available && response.bestMove) {
+  if (response?.available && response.bestMove && isUciMove(response.bestMove)) {
     const engineMove = parseUciMove(response.bestMove);
     const isLegal = legalMoves.some(
       (move) => move.from === engineMove.from && move.to === engineMove.to && (!engineMove.promotion || move.promotion === engineMove.promotion)

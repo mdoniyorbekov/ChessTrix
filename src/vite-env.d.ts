@@ -30,6 +30,7 @@ declare global {
           searchMoves?: string[];
           requestId?: string;
           moveIndex?: number;
+          timeoutMs?: number;
         }
       ) => Promise<{
         available: boolean;

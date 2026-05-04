@@ -43,12 +43,9 @@
 }
 
 .topbar-logo {
-  width: 138px;
-  height: 42px;
+  width: 168px;
+  height: 48px;
   object-fit: contain;
-  border-radius: 6px;
-  background: #fff;
-  padding: 4px 8px;
 }
 
 .app-shell__main {

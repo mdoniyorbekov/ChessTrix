@@ -41,6 +41,7 @@ import type { XpAward } from "../game/platform/profile";
 import { recordPairingResult } from "../game/platform/tournaments";
 import { createFourPlayerState, currentPlayer, isFourPlayerInCheck, isPlayableFourSquare, legalFourPlayerTargets, moveFourPlayerPiece, type FourPlayerState } from "../game/fourPlayer/fourPlayerController";
 import { formatClock, formatTimeControl, getSavedTimeControl, type TimeControl } from "../game/timeControls";
+import { useMoveReplayKeys } from "../hooks/useMoveReplayKeys";
 import { publicAssetUrl } from "../theme/assetPath";
 import { AppRoute, initialRoute } from "./routes";
 import { Poster } from "./Poster";
@@ -155,7 +156,7 @@ function buildCompletedGameInput(
 function SplashScreen({ onEnter }: { onEnter: () => void }) {
   return (
     <div className="splash">
-      <img className="splash__brand-image" src={publicAssetUrl("app-assets/chesstrix-logo.png")} alt="Chesstrix" />
+      <img className="splash__brand-image" src={publicAssetUrl("app-assets/chesstrix-logo-horizontal.png?v=20260504-transparent")} alt="Chesstrix" />
       <p>Chess arena</p>
       <div className="splash__progress"><span /></div>
       <Button onClick={onEnter}>Enter</Button>
@@ -187,6 +188,8 @@ function NormalGame({
   const [positionHistory, setPositionHistory] = useState<string[]>(() => [new Chess(chess960Fen).fen()]);
   const [viewIndex, setViewIndex] = useState<number | null>(null);
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
+  const [animationMove, setAnimationMove] = useState<{ from: string; to: string } | null>(null);
+  const [slowBotAnimation, setSlowBotAnimation] = useState(false);
   const [evaluation, setEvaluation] = useState<EngineEvaluation | null>(null);
   const [engineMessage, setEngineMessage] = useState<string | undefined>();
   const [botThinking, setBotThinking] = useState(false);
@@ -329,6 +332,8 @@ function NormalGame({
             }
           }
           setLastMove(nextLastMove);
+          setAnimationMove(null);
+          setSlowBotAnimation(nextHistory.length === 1 && nextHistory[0].color === botSide);
           setUciMoves((moves) => [...moves, ...nextUciMoves]);
           if (isChess960) setChess960History((moves) => [...moves, ...nextHistory]);
           setPositionHistory((positions) => [...positions, ...nextPositions]);
@@ -356,6 +361,8 @@ function NormalGame({
     if (!clockStarted && result.color === "w") setClockStarted(true);
     applyMoveClock(result.color, timeControl.incrementSeconds);
     setLastMove({ from: result.from, to: result.to });
+    setAnimationMove(null);
+    setSlowBotAnimation(false);
     setUciMoves((moves) => [...moves, moveToUci(result)]);
     if (isChess960) setChess960History((moves) => [...moves, result]);
     setPositionHistory((positions) => [...positions, result.after]);
@@ -375,6 +382,8 @@ function NormalGame({
     setPositionHistory([next.fen()]);
     setViewIndex(null);
     setLastMove(null);
+    setAnimationMove(null);
+    setSlowBotAnimation(false);
     setPendingPremoves([]);
     setClocks(createInitialClocks(timeControl));
     setClockStarted(false);
@@ -396,6 +405,8 @@ function NormalGame({
     setPositionHistory((positions) => positions.slice(0, Math.max(1, positions.length - (bot ? 2 : 1))));
     setViewIndex(null);
     setLastMove(null);
+    setAnimationMove(null);
+    setSlowBotAnimation(false);
     setPendingPremoves([]);
     setRevision((value) => value + 1);
   };
@@ -409,12 +420,16 @@ function NormalGame({
   };
 
   const goToMoveView = (nextIndex: number) => {
+    setSlowBotAnimation(false);
+    setAnimationMove(getReplayAnimationMove(history, currentViewIndex, nextIndex));
     if (nextIndex >= positionHistory.length - 1) {
       setViewIndex(null);
       return;
     }
     setViewIndex(Math.max(0, Math.min(nextIndex, positionHistory.length - 1)));
   };
+
+  useMoveReplayKeys({ index: currentViewIndex, maxIndex: positionHistory.length - 1, onChange: goToMoveView });
 
   return (
     <div className="game-layout">
@@ -444,6 +459,8 @@ function NormalGame({
           orientation={boardOrientation}
           size={640}
           lastMove={boardLastMove}
+          animationMove={animationMove}
+          animationDurationMs={slowBotAnimation ? 1500 : undefined}
           premoves={pendingPremoves}
           premoveColor={botSide && chess.turn() === botSide ? humanColor : undefined}
           allowPremove={allowPremoves && Boolean(bot) && !isViewingHistory}
@@ -572,6 +589,27 @@ function getHistoryMoveForView(history: Move[], viewIndex: number) {
   return move ? { from: move.from, to: move.to } : null;
 }
 
+function getReplayAnimationMove(history: Move[], currentIndex: number, nextIndex: number) {
+  if (nextIndex < currentIndex) {
+    const undone = history[currentIndex - 1];
+    return undone ? { from: undone.to, to: undone.from } : null;
+  }
+  if (nextIndex > currentIndex) {
+    const replayed = history[nextIndex - 1];
+    return replayed ? { from: replayed.from, to: replayed.to } : null;
+  }
+  return null;
+}
+
+function getCrazyhouseReplayAnimationMove(history: CrazyhouseReplayPosition[], currentIndex: number, nextIndex: number) {
+  if (nextIndex < currentIndex) {
+    const undone = history[currentIndex]?.lastMove;
+    return undone ? { from: undone.to, to: undone.from } : null;
+  }
+  if (nextIndex > currentIndex) return history[nextIndex]?.lastMove ?? null;
+  return null;
+}
+
 function buildReviewPayload(chess: Chess, moves: string[], initialFen: string | undefined, bot?: BotProfile, tournamentGame?: TournamentLaunch) {
   const reason = getGameEndReason(chess);
   const winner = getGameWinner(chess);
@@ -649,32 +687,68 @@ function Chess960Screen({ onResign }: { onResign: (review: { winner?: string; re
   );
 }
 
+type CrazyhouseReplayPosition = {
+  fen: string;
+  label: string;
+  lastMove: { from: string; to: string } | null;
+};
+
 function CrazyhouseScreen() {
   const [state, setState] = useState<CrazyhouseState>(() => createCrazyhouseState());
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
+  const [positionHistory, setPositionHistory] = useState<CrazyhouseReplayPosition[]>(() => [{ fen: new Chess().fen(), label: "Start", lastMove: null }]);
+  const [viewIndex, setViewIndex] = useState<number | null>(null);
+  const [animationMove, setAnimationMove] = useState<{ from: string; to: string } | null>(null);
   const [selectedDrop, setSelectedDrop] = useState<{ color: "w" | "b"; type: keyof Pocket } | null>(null);
   const [pocketDrag, setPocketDrag] = useState<{ color: "w" | "b"; type: keyof Pocket; x: number; y: number } | null>(null);
+  const isViewingHistory = viewIndex !== null;
+  const currentViewIndex = viewIndex ?? positionHistory.length - 1;
+  const boardPosition = positionHistory[currentViewIndex] ?? positionHistory[positionHistory.length - 1];
+  const boardChess = useMemo(() => new Chess(boardPosition.fen), [boardPosition.fen]);
+  const boardLastMove = isViewingHistory ? boardPosition.lastMove : lastMove;
+
+  const goToMoveView = (nextIndex: number) => {
+    setSelectedDrop(null);
+    setPocketDrag(null);
+    setAnimationMove(getCrazyhouseReplayAnimationMove(positionHistory, currentViewIndex, nextIndex));
+    if (nextIndex >= positionHistory.length - 1) {
+      setViewIndex(null);
+      return;
+    }
+    setViewIndex(Math.max(0, Math.min(nextIndex, positionHistory.length - 1)));
+  };
+
+  useMoveReplayKeys({ index: currentViewIndex, maxIndex: positionHistory.length - 1, onChange: goToMoveView });
 
   const move = (from: string, to: string, promotion?: string) => {
+    if (isViewingHistory) return false;
     const result = crazyhouseMove(state, from, to, promotion);
     if (!result) return false;
     playMoveSound(result.captured);
     setLastMove({ from: result.from, to: result.to });
+    setAnimationMove(null);
+    setPositionHistory((positions) => [...positions, { fen: result.after, label: result.san, lastMove: { from: result.from, to: result.to } }]);
+    setViewIndex(null);
     setState({ chess: state.chess, pockets: { w: { ...state.pockets.w }, b: { ...state.pockets.b } } });
     return true;
   };
 
   const handleDrop = (square: string) => {
+    if (isViewingHistory) return false;
     if (!selectedDrop) return false;
     const result = dropPiece(state, selectedDrop.color, selectedDrop.type, square);
     if (!result) return false;
     playMoveSound(false);
+    setAnimationMove(null);
+    setPositionHistory((positions) => [...positions, { fen: state.chess.fen(), label: `${selectedDrop.type.toUpperCase()}@${square}`, lastMove: null }]);
+    setViewIndex(null);
     setSelectedDrop(null);
     setState({ chess: state.chess, pockets: { w: { ...state.pockets.w }, b: { ...state.pockets.b } } });
     return true;
   };
 
   const startPocketDrag = (color: "w" | "b", type: keyof Pocket, event: PointerEvent<HTMLButtonElement>) => {
+    if (isViewingHistory) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     setSelectedDrop({ color, type });
@@ -687,13 +761,16 @@ function CrazyhouseScreen() {
 
   const finishPocketDrag = (event: PointerEvent<HTMLButtonElement>) => {
     const drag = pocketDrag;
-    if (!drag) return;
+    if (!drag || isViewingHistory) return;
     const squareElement = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-square]");
     const square = squareElement?.getAttribute("data-square");
     if (square) {
       const result = dropPiece(state, drag.color, drag.type, square);
       if (result) {
         playMoveSound(false);
+        setAnimationMove(null);
+        setPositionHistory((positions) => [...positions, { fen: state.chess.fen(), label: `${drag.type.toUpperCase()}@${square}`, lastMove: null }]);
+        setViewIndex(null);
         setSelectedDrop(null);
         setState({ chess: state.chess, pockets: { w: { ...state.pockets.w }, b: { ...state.pockets.b } } });
       }
@@ -705,15 +782,24 @@ function CrazyhouseScreen() {
     <div className="crazyhouse-layout">
       <SidePanel>
         <PlayerCard title="Black Pocket" subtitle="Drag a piece to the board" color="b" />
-        <PocketStack pocket={state.pockets.b} color="b" selectedDrop={selectedDrop} onSelect={(type) => setSelectedDrop({ color: "b", type })} onDragStart={startPocketDrag} onDragMove={movePocketDrag} onDragEnd={finishPocketDrag} />
+        <PocketStack pocket={state.pockets.b} color="b" selectedDrop={selectedDrop} onSelect={(type) => !isViewingHistory && setSelectedDrop({ color: "b", type })} onDragStart={startPocketDrag} onDragMove={movePocketDrag} onDragEnd={finishPocketDrag} />
       </SidePanel>
       <section className="crazyhouse-center">
-        <ChessBoard chess={state.chess} size={600} lastMove={lastMove} onMove={move} dropPiece={selectedDrop} onDrop={handleDrop} />
+        <ChessBoard chess={boardChess} size={600} lastMove={boardLastMove} animationMove={animationMove} onMove={move} dropPiece={isViewingHistory ? null : selectedDrop} onDrop={handleDrop} disabled={isViewingHistory} />
+        <div className="replay-controls">
+          <Button variant="ghost" icon={<ChevronLeft />} disabled={currentViewIndex <= 0} onClick={() => goToMoveView(currentViewIndex - 1)}>
+            Back
+          </Button>
+          <span>{currentViewIndex} / {positionHistory.length - 1}</span>
+          <Button variant="ghost" icon={<ChevronRight />} disabled={currentViewIndex >= positionHistory.length - 1} onClick={() => goToMoveView(currentViewIndex + 1)}>
+            Forward
+          </Button>
+        </div>
       </section>
       <SidePanel>
         <PlayerCard title="White Pocket" subtitle={gameStatus(state.chess)} color="w" />
-        <PocketStack pocket={state.pockets.w} color="w" selectedDrop={selectedDrop} onSelect={(type) => setSelectedDrop({ color: "w", type })} onDragStart={startPocketDrag} onDragMove={movePocketDrag} onDragEnd={finishPocketDrag} />
-        <Card className="move-history"><h3>History</h3><div>{state.chess.history().map((item, index) => <span key={index}>{item}</span>)}</div></Card>
+        <PocketStack pocket={state.pockets.w} color="w" selectedDrop={selectedDrop} onSelect={(type) => !isViewingHistory && setSelectedDrop({ color: "w", type })} onDragStart={startPocketDrag} onDragMove={movePocketDrag} onDragEnd={finishPocketDrag} />
+        <Card className="move-history"><h3>History</h3><div>{positionHistory.slice(1).map((item, index) => <span key={`${item.label}-${index}`}>{Math.floor(index / 2) + 1}. {item.label}</span>)}</div></Card>
       </SidePanel>
       {pocketDrag && (
         <div className="pocket-drag-piece" style={{ left: pocketDrag.x, top: pocketDrag.y }}>

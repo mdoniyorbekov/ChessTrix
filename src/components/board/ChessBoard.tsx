@@ -13,6 +13,8 @@ type ChessBoardProps = {
   size?: number;
   showCoordinates?: boolean;
   lastMove?: { from: string; to: string } | null;
+  animationMove?: { from: string; to: string } | null;
+  animationDurationMs?: number;
   hintMove?: { from: string; to: string } | null;
   bestMove?: { from: string; to: string } | null;
   premove?: { from: string; to: string } | null;
@@ -65,6 +67,8 @@ export function ChessBoard({
   size = 640,
   showCoordinates = true,
   lastMove,
+  animationMove,
+  animationDurationMs = pieceMoveAnimationMs,
   hintMove,
   bestMove,
   premove,
@@ -130,14 +134,15 @@ export function ChessBoard({
   const canInteractWithPiece = (color: "w" | "b") => color === chess.turn() || Boolean(allowPremove && premoveColor === color);
 
   useLayoutEffect(() => {
-    if (!lastMove) return;
+    const moveToAnimate = animationMove ?? lastMove;
+    if (!moveToAnimate) return;
 
-    const piece = chess.get(lastMove.to as ChessSquare);
+    const piece = chess.get(moveToAnimate.to as ChessSquare);
     if (!piece) return;
 
-    const id = `${lastMove.from}-${lastMove.to}`;
+    const id = `${moveToAnimate.from}-${moveToAnimate.to}-${fen}`;
     if (lastAnimationId.current === id) return;
-    if (skipAnimationId.current === id) {
+    if (skipAnimationId.current && id.startsWith(`${skipAnimationId.current}-`)) {
       skipAnimationId.current = null;
       lastAnimationId.current = id;
       setMovingPiece(null);
@@ -147,20 +152,20 @@ export function ChessBoard({
     lastAnimationId.current = id;
     setMovingPiece({
       id,
-      from: lastMove.from,
-      to: lastMove.to,
+      from: moveToAnimate.from,
+      to: moveToAnimate.to,
       color: piece.color,
       type: piece.type
     });
 
     const timeout = window.setTimeout(() => {
       setMovingPiece((current) => (current?.id === id ? null : current));
-    }, pieceMoveAnimationMs + 80);
+    }, animationDurationMs + 80);
 
     return () => {
       window.clearTimeout(timeout);
     };
-  }, [chess, fen, lastMove]);
+  }, [animationDurationMs, animationMove, chess, fen, lastMove]);
 
   const handleClick = (square: string) => {
     if (arrows.length || highlights.length) {
@@ -288,7 +293,7 @@ export function ChessBoard({
     }
   };
 
-  const movingStyle = movingPiece ? createMovingPieceStyle(movingPiece, orientation, size) : undefined;
+  const movingStyle = movingPiece ? createMovingPieceStyle(movingPiece, orientation, size, animationDurationMs) : undefined;
 
   const startRightDrag = (square: string, event: PointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -485,7 +490,7 @@ function getPremoveTargets(from: string, pieces: Map<string, { type: string; col
   return targets;
 }
 
-function createMovingPieceStyle(piece: MovingPiece, orientation: "white" | "black", boardSize: number): CSSProperties {
+function createMovingPieceStyle(piece: MovingPiece, orientation: "white" | "black", boardSize: number, durationMs: number): CSSProperties {
   const squareSize = boardSize / 8;
   const from = squareToPoint(piece.from, orientation, squareSize);
   const to = squareToPoint(piece.to, orientation, squareSize);
@@ -493,7 +498,7 @@ function createMovingPieceStyle(piece: MovingPiece, orientation: "white" | "blac
   return {
     width: squareSize,
     height: squareSize,
-    "--piece-move-duration": `${pieceMoveAnimationMs}ms`,
+    "--piece-move-duration": `${durationMs}ms`,
     "--from-x": `${from.x}px`,
     "--from-y": `${from.y}px`,
     "--to-x": `${to.x}px`,

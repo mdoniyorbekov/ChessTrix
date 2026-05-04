@@ -1,14 +1,16 @@
 import { Chess, type Move } from "chess.js";
 import { Activity, FileText, RotateCcw, Search, Upload } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatEvaluation, type EngineAnalysis } from "../../game/engine/evaluation";
 import { requestAnalysis } from "../../game/engine/stockfishClient";
-import { getOpeningContinuations, findOpeningForFen, openingDisplay } from "../../game/openings/openingBook";
+import { getOpeningContinuations, findDeepestOpeningForLine, findOpeningForFen, openingDisplay } from "../../game/openings/openingBook";
 import { moveToUci } from "../../game/normal/moveUtils";
+import { useMoveReplayKeys } from "../../hooks/useMoveReplayKeys";
 import { ChessBoard } from "../board/ChessBoard";
 import { Badge } from "../common/Badge";
 import { Button } from "../common/Button";
 import { Card } from "../common/Card";
+import { EvaluationBar } from "./EvaluationBar";
 import "./analysis.css";
 
 type AnalysisScreenProps = {
@@ -44,22 +46,20 @@ export function AnalysisScreen({ onRunReview }: AnalysisScreenProps) {
   const analysisRequestId = useRef(0);
   const activeFen = positions[viewIndex] ?? fen;
   const boardChess = useMemo(() => new Chess(activeFen), [activeFen]);
-  const opening = findOpeningForFen(activeFen);
+  const exactOpening = useMemo(() => findOpeningForFen(activeFen), [activeFen]);
+  const deepestOpening = useMemo(() => findDeepestOpeningForLine(moves.slice(0, viewIndex), initialFen), [initialFen, moves, viewIndex]);
+  const opening = exactOpening ?? deepestOpening;
   const continuations = getOpeningContinuations(activeFen).slice(0, 8);
   const canReview = moves.length > 0;
 
-  useEffect(() => {
-    if (!settings.autoAnalyze) return;
-    analyzeCurrentPosition();
-  }, [activeFen, settings.autoAnalyze, settings.depth, settings.multiPv, settings.threads, settings.hashMb]);
-
-  const analyzeCurrentPosition = () => {
+  const analyzeCurrentPosition = useCallback(async () => {
     const targetFen = activeFen;
     const requestId = analysisRequestId.current + 1;
     analysisRequestId.current = requestId;
     setEngineStatus("analyzing");
     setError(null);
-    requestAnalysis({ fen: targetFen }, settings)
+    await window.chesstrixEngine?.stop().catch(() => undefined);
+    requestAnalysis({ fen: targetFen }, { ...settings, timeoutMs: 15000 })
       .then((response) => {
         if (requestId !== analysisRequestId.current) return;
         if (response.available && response.analysis) {
@@ -76,7 +76,15 @@ export function AnalysisScreen({ onRunReview }: AnalysisScreenProps) {
         setEngineStatus("error");
         setError(err.message);
       });
-  };
+  }, [activeFen, settings]);
+
+  useEffect(() => {
+    if (!settings.autoAnalyze) return;
+    const timer = window.setTimeout(() => {
+      analyzeCurrentPosition();
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [analyzeCurrentPosition, settings.autoAnalyze]);
 
   const updateSettings = <K extends keyof EngineSettings>(key: K, value: EngineSettings[K]) => {
     const next = { ...settings, [key]: value };
@@ -151,6 +159,15 @@ export function AnalysisScreen({ onRunReview }: AnalysisScreenProps) {
 
   const displayedAnalysis = analysisFen === activeFen ? analysis : null;
   const bestMove = settings.showArrows && displayedAnalysis?.bestMove ? { from: displayedAnalysis.bestMove.slice(0, 2), to: displayedAnalysis.bestMove.slice(2, 4) } : null;
+  useMoveReplayKeys({ index: viewIndex, maxIndex: positions.length - 1, onChange: setViewIndex });
+
+  const runGameReview = async () => {
+    if (!canReview) return;
+    analysisRequestId.current += 1;
+    setEngineStatus("idle");
+    await window.chesstrixEngine?.stop().catch(() => undefined);
+    onRunReview?.(moves, initialFen);
+  };
 
   return (
     <div className="analysis-workbench">
@@ -168,8 +185,13 @@ export function AnalysisScreen({ onRunReview }: AnalysisScreenProps) {
       <section className="analysis-main-column">
         <Card className="engine-panel">
           <div className="review-card-title"><Activity /><h3>Engine Analysis</h3></div>
-          <strong>{displayedAnalysis ? formatEvaluation(displayedAnalysis.evaluation) : "0.0"}</strong>
-          <Badge tone={engineStatus === "error" ? "danger" : engineStatus === "analyzing" ? "info" : "success"}>{engineStatus}</Badge>
+          <div className="engine-panel__score">
+            <EvaluationBar evaluation={displayedAnalysis?.evaluation} height={160} />
+            <div>
+              <strong>{displayedAnalysis ? formatEvaluation(displayedAnalysis.evaluation) : "0.0"}</strong>
+              <Badge tone={engineStatus === "error" ? "danger" : engineStatus === "analyzing" ? "info" : "success"}>{engineStatus}</Badge>
+            </div>
+          </div>
           <Button icon={<Search />} onClick={analyzeCurrentPosition}>Analyze</Button>
           {error && <p className="analysis-error">{error}</p>}
           <div className="top-lines">
@@ -187,7 +209,7 @@ export function AnalysisScreen({ onRunReview }: AnalysisScreenProps) {
         <Card className="opening-panel">
           <h3>Opening Explorer</h3>
           <strong>{openingDisplay(opening)}</strong>
-          <p>{opening ? opening.moves : "No opening found in database."}</p>
+          <p>{exactOpening ? opening?.moves : opening ? `Out of book. Last known line: ${opening.moves}` : "No matching opening found for this line yet."}</p>
           <div>
             {continuations.map((item) => <Badge key={item.uci} tone="info">{item.san}</Badge>)}
           </div>
@@ -203,7 +225,7 @@ export function AnalysisScreen({ onRunReview }: AnalysisScreenProps) {
             ))}
           </div>
           {variations.length > 0 && <div className="variation-list">{variations.map((item) => <small key={item}>{item}</small>)}</div>}
-          <Button disabled={!canReview} onClick={() => onRunReview?.(moves, initialFen)}>Run Game Review</Button>
+          <Button disabled={!canReview} onClick={runGameReview}>Run Game Review</Button>
         </Card>
       </section>
 

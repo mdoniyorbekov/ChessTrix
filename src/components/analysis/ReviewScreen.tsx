@@ -14,8 +14,10 @@ import {
   type ReviewResult
 } from "../../game/analysis/reviewEngine";
 import { reviewIconPath } from "../../game/analysis/reviewAssets";
+import { isUciMove } from "../../game/engine/uciParser";
 import { getGames, updateGameReview } from "../../game/platform/archive";
 import { recomputeAchievements } from "../../game/platform/achievements";
+import { useMoveReplayKeys } from "../../hooks/useMoveReplayKeys";
 import { publicAssetUrl } from "../../theme/assetPath";
 import { ChessBoard } from "../board/ChessBoard";
 import { Badge } from "../common/Badge";
@@ -53,9 +55,23 @@ export function ReviewScreen({ moves = [], initialFen, whiteName = "White Player
   const [orientation, setOrientation] = useState<"white" | "black">("white");
   const [retrying, setRetrying] = useState<ReviewMove | null>(null);
   const [retryMessage, setRetryMessage] = useState<string | null>(null);
+  const [animationMove, setAnimationMove] = useState<{ from: string; to: string } | null>(null);
   const [showAnalysisDetails, setShowAnalysisDetails] = useState(() => localStorage.getItem("chesstrix.review.debug") === "true");
   const cancelRef = useRef(false);
-  const reviewKey = useMemo(() => `${initialFen ?? "start"}:${moves.join(" ")}:${options.depth}:${options.multiPv}`, [initialFen, moves, options.depth, options.multiPv]);
+  const reviewMoves = useMemo(() => moves.filter(isUciMove).map((move) => move.toLowerCase()), [moves]);
+  const reviewKey = useMemo(() => `${initialFen ?? "start"}:${reviewMoves.join(" ")}:${options.depth}:${options.multiPv}`, [initialFen, reviewMoves, options.depth, options.multiPv]);
+  const reviewMaxIndex = state.status === "ready" ? state.review.moveReviews.length - 1 : 0;
+
+  const jump = (index: number) => {
+    if (state.status !== "ready") return;
+    const nextIndex = Math.max(0, Math.min(index, state.review.moveReviews.length - 1));
+    setAnimationMove(getReviewReplayAnimationMove(state.review.moveReviews, selectedIndex, nextIndex));
+    setRetrying(null);
+    setRetryMessage(null);
+    setSelectedIndex(nextIndex);
+  };
+
+  useMoveReplayKeys({ index: selectedIndex, maxIndex: reviewMaxIndex, onChange: jump, enabled: state.status === "ready" && !retrying });
 
   useEffect(() => {
     if (!gameId || state.status !== "ready") return;
@@ -71,7 +87,7 @@ export function ReviewScreen({ moves = [], initialFen, whiteName = "White Player
   }, [gameId, state]);
 
   useEffect(() => {
-    if (!moves.length) {
+    if (!reviewMoves.length) {
       setState({ status: "empty" });
       return;
     }
@@ -79,14 +95,18 @@ export function ReviewScreen({ moves = [], initialFen, whiteName = "White Player
     cancelRef.current = false;
     setRetrying(null);
     setRetryMessage(null);
-    setState({ status: "loading", progress: { done: 0, total: moves.length, message: "Preparing review..." } });
-    analyzeGameReview(
-      moves,
-      initialFen,
-      options,
-      (progress) => setState((current) => (current.status === "loading" ? { status: "loading", progress } : current)),
-      () => cancelRef.current
-    )
+    setState({ status: "loading", progress: { done: 0, total: reviewMoves.length, message: "Preparing review..." } });
+    const runReview = async () => {
+      await window.chesstrixEngine?.stop().catch(() => undefined);
+      return analyzeGameReview(
+        reviewMoves,
+        initialFen,
+        options,
+        (progress) => setState((current) => (current.status === "loading" ? { status: "loading", progress } : current)),
+        () => cancelRef.current
+      );
+    };
+    runReview()
       .then((review) => {
         if (!cancelRef.current) {
           setSelectedIndex(0);
@@ -100,7 +120,7 @@ export function ReviewScreen({ moves = [], initialFen, whiteName = "White Player
     return () => {
       cancelRef.current = true;
     };
-  }, [reviewKey, moves, initialFen, options]);
+  }, [reviewKey, reviewMoves, initialFen, options]);
 
   if (state.status === "empty") {
     return (
@@ -165,12 +185,6 @@ export function ReviewScreen({ moves = [], initialFen, whiteName = "White Player
     ? { [selected.played.to]: { src: publicAssetUrl(selectedIconPath), label: selected.classification } }
     : undefined;
 
-  const jump = (index: number) => {
-    setRetrying(null);
-    setRetryMessage(null);
-    setSelectedIndex(Math.max(0, Math.min(index, review.moveReviews.length - 1)));
-  };
-
   const startRetry = () => {
     if (!selected) return;
     setRetrying(selected);
@@ -231,6 +245,7 @@ export function ReviewScreen({ moves = [], initialFen, whiteName = "White Player
             orientation={orientation}
             size={560}
             lastMove={retrying ? null : lastMove}
+            animationMove={retrying ? null : animationMove}
             bestMove={retrying ? null : bestMove}
             feedbackIcons={boardFeedbackIcons}
             onMove={retrying ? tryRetryMove : undefined}
@@ -351,6 +366,18 @@ function MoveList({ review, selectedIndex, onSelect }: { review: ReviewResult; s
       </div>
     </Card>
   );
+}
+
+function getReviewReplayAnimationMove(moves: ReviewMove[], currentIndex: number, nextIndex: number) {
+  if (nextIndex < currentIndex) {
+    const undone = moves[currentIndex]?.played;
+    return undone ? { from: undone.to, to: undone.from } : null;
+  }
+  if (nextIndex > currentIndex) {
+    const replayed = moves[nextIndex]?.played;
+    return replayed ? { from: replayed.from, to: replayed.to } : null;
+  }
+  return null;
 }
 
 function CoachPanel({ move, onRetry, showAnalysisDetails }: { move?: ReviewMove; onRetry: () => void; showAnalysisDetails: boolean }) {

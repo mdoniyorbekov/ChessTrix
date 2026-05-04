@@ -495,7 +495,7 @@ export function Poster({ onBack }: { onBack?: () => void }) {
       <article className="poster-page poster-page--cover">
         <div className="cover-grid">
           <section className="cover-main">
-            <img className="poster-logo" src={publicAssetUrl("app-assets/chesstrix-logo.png")} alt="ChessTrix logo" />
+            <img className="poster-logo" src={publicAssetUrl("app-assets/chesstrix-logo-horizontal.png?v=20260504-transparent")} alt="ChessTrix logo" />
             <p className="poster-kicker">C++ Object-Oriented Desktop Chess Arena</p>
             <h1>ChessTrix</h1>
             <p className="cover-description">

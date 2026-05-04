@@ -17,16 +17,16 @@ type MainMenuProps = {
 export function MainMenu({ onPlay, onSettings, onRoute }: MainMenuProps) {
   const [timeControl, setTimeControl] = useState(getSavedTimeControl);
   const modes = [
-    ["Two Player", "Classic local chess", "normal", "app-assets/chesscom/two_player_game.png"],
-    ["Play with Bots", "Your custom AI opponents", "bots", "app-assets/section-icons/bots.svg"],
-    ["Puzzle Arena", "Solve tactical puzzles", "puzzles", "app-assets/chesscom/puzzle.png"],
-    ["Analysis", "Study positions and games", "analysis", "app-assets/chesscom/analysis.png"],
-    ["Archive & Stats", "Saved games and progress", "archive", "app-assets/section-icons/archive.svg"],
-    ["Achievements", "Badges and rewards", "achievements", "app-assets/section-icons/achievements.svg"],
-    ["Tournaments", "Cups, Swiss, brackets", "tournaments", "app-assets/section-icons/tournaments.svg"],
-    ["Chess960", "Randomized back rank", "chess960", "app-assets/section-icons/chess960.svg"],
-    ["Crazyhouse", "Captured pieces return", "crazyhouse", "app-assets/chesscom/crazy_house.png"],
-    ["4-Player Chess", "Local multiplayer chaos", "four-player", "app-assets/section-icons/four-player.svg"]
+    ["Two Player", "Classic local chess", "normal", "app-assets/menu-icons/Two Player.png"],
+    ["Play with Bots", "Your custom AI opponents", "bots", "app-assets/menu-icons/Play with Bots.png"],
+    ["Puzzle Arena", "Solve tactical puzzles", "puzzles", "app-assets/menu-icons/Puzzle Arena.png"],
+    ["Analysis", "Study positions and games", "analysis", "app-assets/menu-icons/Analysis.png"],
+    ["Archive & Stats", "Saved games and progress", "archive", "app-assets/menu-icons/Archive & Stats.png"],
+    ["Achievements", "Badges and rewards", "achievements", "app-assets/menu-icons/Achievments.png"],
+    ["Tournaments", "Cups, Swiss, brackets", "tournaments", "app-assets/menu-icons/Tournaments.png"],
+    ["Chess960", "Randomized back rank", "chess960", "app-assets/menu-icons/Chess960.png"],
+    ["Crazyhouse", "Captured pieces return", "crazyhouse", "app-assets/menu-icons/Crazyhouse.png"],
+    ["4-Player Chess", "Local multiplayer chaos", "four-player", "app-assets/menu-icons/4-Player Chess.png"]
   ] as const;
 
   const chooseTime = (id: string) => {
@@ -36,10 +36,10 @@ export function MainMenu({ onPlay, onSettings, onRoute }: MainMenuProps) {
   };
 
   return (
-    <div className="main-menu">
+    <div className="main-menu main-menu--launcher">
       <section className="menu-hero">
         <div>
-          <img className="menu-logo" src={publicAssetUrl("app-assets/chesstrix-logo.png")} alt="Chesstrix" />
+          <img className="menu-logo" src={publicAssetUrl("app-assets/chesstrix-logo-horizontal.png?v=20260504-transparent")} alt="Chesstrix" />
           <p>Chess arena</p>
         </div>
         <div className="menu-hero__actions">

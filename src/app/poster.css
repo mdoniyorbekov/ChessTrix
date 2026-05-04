@@ -169,10 +169,8 @@
   width: 70mm;
   max-width: 100%;
   height: auto;
-  border-radius: 8px;
-  background: #ffffff;
-  padding: 3mm;
-  box-shadow: 0 20px 52px rgba(0, 0, 0, 0.34);
+  display: block;
+  object-fit: contain;
 }
 
 .poster-kicker {

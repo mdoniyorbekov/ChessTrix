@@ -58,10 +58,10 @@ export function evaluationStatus(evaluation?: EngineEvaluation | null) {
 export function evaluationFillPercent(evaluation?: EngineEvaluation | null) {
   if (!evaluation) return 50;
   if (evaluation.type === "mate") {
-    return evaluation.value > 0 ? 96 : 4;
+    return evaluation.value > 0 ? 98 : 2;
   }
-  const pawns = Math.max(-5, Math.min(5, evaluation.value / 100));
-  return 50 + pawns * 10;
+  const pawns = evaluation.value / 100;
+  return 50 + Math.tanh(pawns / 3) * 50;
 }
 
 export function evaluationToNumber(evaluation?: EngineEvaluation | null) {

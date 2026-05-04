@@ -41,23 +41,24 @@
   border-radius: 999px;
   overflow: hidden;
   border: 1px solid var(--color-border);
-  background: #111;
-  display: flex;
-  flex-direction: column;
+  background: #111827;
 }
 
 .eval-bar--horizontal {
   width: 100%;
   height: 24px;
-  flex-direction: row;
-}
-
-.eval-bar__black {
-  background: #111827;
 }
 
 .eval-bar__white {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: #f8fafc;
+}
+
+.eval-bar--horizontal .eval-bar__white {
+  inset: 0 0 0 auto;
 }
 
 .eval-bar__center {
@@ -614,7 +615,18 @@
   gap: 12px;
 }
 
-.engine-panel > strong {
+.engine-panel__score {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.engine-panel__score > div {
+  display: grid;
+  gap: 10px;
+}
+
+.engine-panel__score strong {
   font-size: 44px;
   line-height: 1;
 }

@@ -558,6 +558,7 @@ function LiveBotGameViewer({ game, onClose }: { game: LiveBotGame; onClose: () =
             orientation="white"
             size={420}
             lastMove={last ? { from: last.from, to: last.to } : null}
+            animationDurationMs={1500}
             disabled
           />
         </div>

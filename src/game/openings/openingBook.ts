@@ -24,6 +24,18 @@ export function findOpeningAfterMove(beforeFen: string, move: { from: string; to
   return findOpeningForFen(chess.fen());
 }
 
+export function findDeepestOpeningForLine(moves: string[], initialFen?: string) {
+  const chess = new Chess(initialFen);
+  let deepest = findOpeningForFen(chess.fen());
+  for (const uci of moves) {
+    const result = chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
+    if (!result) break;
+    const opening = findOpeningForFen(chess.fen());
+    if (opening) deepest = opening;
+  }
+  return deepest;
+}
+
 export function getOpeningContinuations(fen: string) {
   const chess = new Chess(fen);
   return chess.moves({ verbose: true }).flatMap((move) => {

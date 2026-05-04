@@ -176,7 +176,7 @@ export const reviewClassifications: ReviewClassification[] = [
 ];
 
 const defaultCounts = () => Object.fromEntries(reviewClassifications.map((item) => [item, 0])) as Record<ReviewClassification, number>;
-const reviewCacheVersion = 8;
+const reviewCacheVersion = 9;
 const analysisDebug = typeof localStorage !== "undefined" && localStorage.getItem("chesstrix.review.debug") === "true";
 const materialValues: Record<string, number> = { p: 100, n: 300, b: 300, r: 500, q: 900, k: 0 };
 
@@ -209,6 +209,7 @@ export async function analyzeGameReview(
     const fenSideToMove = fenTurn(beforeFen);
     const legalMoves = chess.moves({ verbose: true }) as Move[];
     const legalMoveCount = legalMoves.length;
+    if (!isReviewUciMove(moves[index])) continue;
     const played = parseUciMove(moves[index]);
 
     onProgress({ ...reviewProgressFromMoves(moveReviews, moves.length, `Analyzing move ${index + 1} / ${moves.length}...`), done: index });
@@ -224,7 +225,8 @@ export async function analyzeGameReview(
     const bestRequestId = positionRequestId;
     const bestAnalysis = positionAnalysis;
     const actualRequestId = `review-pos-${index + 1}-${Date.now()}-${hashString(afterFen).slice(0, 6)}`;
-    const actualAnalysis = await analyzePosition(afterFen, index === moves.length - 1 ? { ...options, multiPv: 1 } : options, reviewIsChess960, actualRequestId, index + 1);
+    const actualAnalysis = terminalAnalysis(chess, moverColor, afterFen, actualRequestId, index + 1) ??
+      await analyzePosition(afterFen, index === moves.length - 1 ? { ...options, multiPv: 1 } : options, reviewIsChess960, actualRequestId, index + 1);
     positionRequestId = actualRequestId;
     positionAnalysis = actualAnalysis;
     verifyAnalysis(bestAnalysis, bestRequestId, index, beforeFen);
@@ -474,11 +476,61 @@ async function analyzePosition(fen: string, options: ReviewOptions, chess960: bo
       chess960,
       searchMoves,
       requestId,
-      moveIndex
+      moveIndex,
+      timeoutMs: 20000
     }
   );
   if (!response.available || !response.analysis) throw new Error(response.message ?? "Stockfish analysis was unavailable.");
   return response.analysis;
+}
+
+function terminalAnalysis(chess: Chess, moverColor: "w" | "b", fen: string, requestId: string, moveIndex: number): EngineAnalysis | null {
+  if (chess.isCheckmate()) {
+    const value = moverColor === "w" ? 1 : -1;
+    const evaluation: EngineEvaluation = {
+      type: "mate",
+      value,
+      pov: "white",
+      depth: 0,
+      raw: "terminal checkmate",
+      rawValue: value,
+      rawPov: "sideToMove",
+      fenSideToMove: fenTurn(fen)
+    };
+    return {
+      evaluation,
+      bestMove: undefined,
+      lines: [],
+      depth: 0,
+      raw: "terminal checkmate",
+      requestId,
+      moveIndex,
+      fen
+    };
+  }
+  if (chess.isDraw()) {
+    const evaluation: EngineEvaluation = {
+      type: "cp",
+      value: 0,
+      pov: "white",
+      depth: 0,
+      raw: "terminal draw",
+      rawValue: 0,
+      rawPov: "sideToMove",
+      fenSideToMove: fenTurn(fen)
+    };
+    return {
+      evaluation,
+      bestMove: undefined,
+      lines: [],
+      depth: 0,
+      raw: "terminal draw",
+      requestId,
+      moveIndex,
+      fen
+    };
+  }
+  return null;
 }
 
 function verifyAnalysis(analysis: EngineAnalysis, requestId: string, moveIndex: number, fen: string, requestedMove?: string) {
@@ -564,6 +616,7 @@ function classifyMove(input: {
 }): ClassificationDecision {
   const specialRejected: string[] = [];
   if (input.isBook) return { classification: "Book", specialRejected };
+  if (input.actualCheckmates) return { classification: "Checkmate", specialRejected };
 
   const missReason = missedOpportunityReason(input);
   if (missReason) return { classification: "Miss", missReason, specialRejected };
@@ -808,9 +861,9 @@ function acceptedPieceSacrifice(afterFen: string, movedTo: string, moverColor: "
 }
 
 function materialAfterBestReply(afterFen: string, moverColor: "w" | "b", replyUci?: string) {
-  if (!replyUci) return undefined;
+  if (!replyUci || !isReviewUciMove(replyUci)) return undefined;
   const chess = new Chess(afterFen);
-  const reply = chess.move(parseUciMove(replyUci)) as Move | null;
+  const reply = safeChessMove(chess, parseUciMove(replyUci));
   if (!reply) return undefined;
   return calculateMaterialBalance(chess.fen(), moverColor);
 }
@@ -820,7 +873,8 @@ function materialAfterPvReply(beforeFen: string, moverColor: "w" | "b", topLines
   if (!matchingLine || matchingLine.pv.length < 2) return undefined;
   const chess = new Chess(beforeFen);
   for (const uci of matchingLine.pv.slice(0, 2)) {
-    const move = chess.move(parseUciMove(uci)) as Move | null;
+    if (!isReviewUciMove(uci)) return undefined;
+    const move = safeChessMove(chess, parseUciMove(uci));
     if (!move) return undefined;
   }
   return calculateMaterialBalance(chess.fen(), moverColor);
@@ -832,10 +886,11 @@ function isSimpleRecapture(previousMove: Move | null, move: Move) {
 }
 
 function bestMoveWinsMaterial(beforeFen: string, bestMove: string, minimumGain: number) {
+  if (!isReviewUciMove(bestMove)) return false;
   const chess = new Chess(beforeFen);
   const moverColor = chess.turn();
   const before = calculateMaterialBalance(beforeFen, moverColor);
-  const move = chess.move(parseUciMove(bestMove)) as Move | null;
+  const move = safeChessMove(chess, parseUciMove(bestMove));
   if (!move) return false;
   const gain = (calculateMaterialBalance(chess.fen(), moverColor) - before) / 100;
   const capturedValue = move.captured ? materialValues[move.captured] / 100 : 0;
@@ -960,8 +1015,9 @@ function reviewProgressFromMoves(moves: ReviewMove[], total: number, message: st
 }
 
 function uciToSan(fen: string, uci: string) {
+  if (!isReviewUciMove(uci)) return uci;
   const chess = new Chess(fen);
-  const move = chess.move(parseUciMove(uci)) as Move | null;
+  const move = safeChessMove(chess, parseUciMove(uci));
   return move?.san ?? uci;
 }
 
@@ -969,7 +1025,8 @@ function pvToSan(fen: string, pv: string[]) {
   const chess = new Chess(fen);
   const san: string[] = [];
   for (const uci of pv.slice(0, 8)) {
-    const move = chess.move(parseUciMove(uci)) as Move | null;
+    if (!isReviewUciMove(uci)) break;
+    const move = safeChessMove(chess, parseUciMove(uci));
     if (!move) break;
     san.push(move.san);
   }
@@ -977,14 +1034,15 @@ function pvToSan(fen: string, pv: string[]) {
 }
 
 function parseUciMove(uci: string) {
-  return { from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] };
+  const normalized = uci.toLowerCase();
+  return { from: normalized.slice(0, 2), to: normalized.slice(2, 4), promotion: normalized[4] };
 }
 
 function applyReviewMove(chess: Chess, initialFen: string | undefined, move: { from: string; to: string; promotion?: string }) {
   if (initialFen && isChess960Fen(initialFen)) {
     const castling = isChess960CastlingMove(chess, initialFen, move.from, move.to);
     if (castling) return executeChess960Castling(chess, initialFen, castling);
-    const result = chess.move(move) as Move | null;
+    const result = safeChessMove(chess, move);
     if (!result) return null;
     const sanitized = sanitizeChess960FenAfterMove(result.after, initialFen, result);
     if (sanitized !== result.after) {
@@ -993,7 +1051,19 @@ function applyReviewMove(chess: Chess, initialFen: string | undefined, move: { f
     }
     return result;
   }
-  return chess.move(move) as Move | null;
+  return safeChessMove(chess, move);
+}
+
+function safeChessMove(chess: Chess, move: { from: string; to: string; promotion?: string }) {
+  try {
+    return chess.move(move) as Move | null;
+  } catch {
+    return null;
+  }
+}
+
+function isReviewUciMove(move: string) {
+  return /^[a-h][1-8][a-h][1-8][qrbn]?$/i.test(move);
 }
 
 function isChess960Fen(fen: string) {
@@ -1095,7 +1165,7 @@ function hashString(value: string) {
 }
 
 export function parseBestMove(bestMove?: string | null) {
-  return bestMove ? { from: bestMove.slice(0, 2), to: bestMove.slice(2, 4), promotion: bestMove[4] } : null;
+  return bestMove && isReviewUciMove(bestMove) ? parseUciMove(bestMove) : null;
 }
 
 export function formattedExpected(value: number) {

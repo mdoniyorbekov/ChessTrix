@@ -60,6 +60,7 @@ export class StockfishService {
   private lastScore: EngineScore = { type: "cp", value: 0, pov: "white", depth: 0, raw: "", rawValue: 0, rawPov: "sideToMove", fenSideToMove: "w" };
   private analysisLines = new Map<number, EngineLine>();
   private queue: Promise<unknown> = Promise.resolve();
+  private queueGeneration = 0;
   private scorePerspective = 1;
   private rootFenSideToMove: "w" | "b" = "w";
   private optionValues = new Map<string, string>();
@@ -123,7 +124,7 @@ export class StockfishService {
       const go = options.moveTimeMs ? `go movetime ${options.moveTimeMs}` : `go depth ${options.depth ?? 12}`;
       const lines = await this.command(go, (line) => line.startsWith("bestmove"), 30000);
       const bestLine = lines.find((line) => line.startsWith("bestmove")) ?? "";
-      const bestMove = bestLine.split(/\s+/)[1] ?? null;
+      const bestMove = concreteBestMove(bestLine.split(/\s+/)[1]);
       return { available: true, bestMove, evaluation: this.lastScore, raw: bestLine };
     });
   }
@@ -152,7 +153,7 @@ export class StockfishService {
       const go = options.moveTimeMs ? `go ${searchMoves}movetime ${options.moveTimeMs}` : `go ${searchMoves}depth ${options.depth ?? 14}`;
       const lines = await this.command(go, (line) => line.startsWith("bestmove"), options.timeoutMs ?? 60000);
       const bestLine = lines.find((line) => line.startsWith("bestmove")) ?? "";
-      const bestMove = bestLine.split(/\s+/)[1] ?? undefined;
+      const bestMove = concreteBestMove(bestLine.split(/\s+/)[1]) ?? undefined;
       const pvLines = [...this.analysisLines.values()].sort((a, b) => a.multipv - b.multipv);
       return {
         available: true,
@@ -208,6 +209,12 @@ export class StockfishService {
   }
 
   async stop() {
+    this.queueGeneration += 1;
+    if (this.pending) {
+      clearTimeout(this.pending.timeout);
+      this.pending.reject(new Error("Engine request canceled."));
+      this.pending = null;
+    }
     if (this.process) {
       this.process.stdin.write("stop\n");
     }
@@ -215,6 +222,7 @@ export class StockfishService {
   }
 
   quit() {
+    this.queueGeneration += 1;
     if (this.process) {
       this.process.stdin.write("quit\n");
       this.process.kill();
@@ -235,7 +243,17 @@ export class StockfishService {
   }
 
   private enqueue<T>(task: () => Promise<T>) {
-    const run = this.queue.then(task, task);
+    const generation = this.queueGeneration;
+    const run = this.queue.then(
+      () => {
+        if (generation !== this.queueGeneration) throw new Error("Engine request canceled.");
+        return task();
+      },
+      () => {
+        if (generation !== this.queueGeneration) throw new Error("Engine request canceled.");
+        return task();
+      }
+    );
     this.queue = run.catch(() => undefined);
     return run;
   }
@@ -370,4 +388,8 @@ export class StockfishService {
 
 function appRoot() {
   return path.resolve(__dirname, "..");
+}
+
+function concreteBestMove(move?: string | null) {
+  return move && /^[a-h][1-8][a-h][1-8][qrbn]?$/i.test(move) ? move.toLowerCase() : null;
 }

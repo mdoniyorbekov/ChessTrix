@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain } from "electron";
+import fs from "node:fs";
 import path from "node:path";
 import { StockfishService } from "./stockfishService";
 
@@ -12,6 +13,7 @@ const createWindow = async () => {
     minHeight: 768,
     backgroundColor: "#07142C",
     title: "Chesstrix",
+    icon: appIconPath(),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -29,6 +31,7 @@ const createWindow = async () => {
 };
 
 app.whenReady().then(async () => {
+  app.setAppUserModelId("com.chesstrix.app");
   registerStockfishIpc();
   await createWindow();
 
@@ -58,4 +61,12 @@ function registerStockfishIpc() {
   ipcMain.handle("stockfish:analysis", (_event, position, options) => stockfish.getAnalysis(position, options));
   ipcMain.handle("stockfish:stop", () => stockfish.stop());
   ipcMain.handle("stockfish:quit", () => stockfish.quit());
+}
+
+function appIconPath() {
+  const candidates = [
+    path.join(__dirname, "../public/app-assets/chesstrix-app-icon.ico"),
+    path.join(__dirname, "../dist/app-assets/chesstrix-app-icon.ico")
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate));
 }

@@ -1,5 +1,6 @@
 import { Chess } from "chess.js";
 import type { BotProfile } from "../bots/botProfiles";
+import { isUciMove } from "../engine/uciParser";
 import { formatTimeControl, type TimeControl } from "../timeControls";
 import { createId } from "./ids";
 import { applyCompletedGameToProfile, applyReviewAccuracyToProfile, type XpAward } from "./profile";
@@ -97,32 +98,33 @@ export function updateGameReview(
 
 export function saveCompletedGame(input: CompletedGameInput) {
   const existing = getGames();
-  const duplicate = existing.find((game) => isDuplicateGame(game, input));
+  const cleanInput = { ...input, moves: cleanUciMoves(input.moves) };
+  const duplicate = existing.find((game) => isDuplicateGame(game, cleanInput));
   if (duplicate) return duplicate;
-  const id = input.forceId ?? createId("game");
-  const pgnData = buildPgn(input);
-  const result = resultCode(input.winner);
-  const tags = buildGameTags(input, result);
+  const id = cleanInput.forceId ?? createId("game");
+  const pgnData = buildPgn(cleanInput);
+  const result = resultCode(cleanInput.winner);
+  const tags = buildGameTags(cleanInput, result);
   const saved: SavedGame = {
     id,
     createdAt: new Date().toISOString(),
-    white: input.whiteName,
-    black: input.blackName,
-    whiteType: input.whiteType ?? "human",
-    blackType: input.blackType ?? (input.bot ? "bot" : "human"),
-    bot: input.bot ? { name: input.bot.name, elo: input.bot.elo, style: input.bot.style } : undefined,
+    white: cleanInput.whiteName,
+    black: cleanInput.blackName,
+    whiteType: cleanInput.whiteType ?? "human",
+    blackType: cleanInput.blackType ?? (cleanInput.bot ? "bot" : "human"),
+    bot: cleanInput.bot ? { name: cleanInput.bot.name, elo: cleanInput.bot.elo, style: cleanInput.bot.style } : undefined,
     result,
-    resultReason: input.resultReason,
-    winner: input.winner,
-    timeControl: input.timeControl,
-    tournamentId: input.tournamentId,
-    tournamentName: input.tournamentName,
-    pairingId: input.pairingId,
+    resultReason: cleanInput.resultReason,
+    winner: cleanInput.winner,
+    timeControl: cleanInput.timeControl,
+    tournamentId: cleanInput.tournamentId,
+    tournamentName: cleanInput.tournamentName,
+    pairingId: cleanInput.pairingId,
     pgn: pgnData.pgn,
     finalFen: pgnData.finalFen,
-    initialFen: input.initialFen,
-    moves: input.moves,
-    moveCount: input.moves.length,
+    initialFen: cleanInput.initialFen,
+    moves: cleanInput.moves,
+    moveCount: cleanInput.moves.length,
     tags,
     favorite: false,
     reviewed: false
@@ -134,10 +136,10 @@ export function saveCompletedGame(input: CompletedGameInput) {
         id,
         resultForHuman,
         moveCount: saved.moveCount,
-        reason: input.resultReason,
+        reason: cleanInput.resultReason,
         opponentType: saved.whiteType === "bot" || saved.blackType === "bot" ? "bot" : "human",
-        opponentElo: input.bot?.elo,
-        tournamentId: input.tournamentId
+        opponentElo: cleanInput.bot?.elo,
+        tournamentId: cleanInput.tournamentId
       })
     : null;
   saved.xpAward = xpAward;
@@ -285,8 +287,8 @@ function normalizeGame(game: Partial<SavedGame>): SavedGame | null {
     pgn: String(game.pgn ?? ""),
     finalFen: String(game.finalFen ?? ""),
     initialFen: game.initialFen,
-    moves: game.moves.map(String),
-    moveCount: Number(game.moveCount ?? game.moves.length) || game.moves.length,
+    moves: cleanUciMoves(game.moves.map(String)),
+    moveCount: cleanUciMoves(game.moves.map(String)).length,
     durationSeconds: game.durationSeconds,
     accuracyWhite: typeof game.accuracyWhite === "number" ? game.accuracyWhite : undefined,
     accuracyBlack: typeof game.accuracyBlack === "number" ? game.accuracyBlack : undefined,
@@ -297,6 +299,10 @@ function normalizeGame(game: Partial<SavedGame>): SavedGame | null {
     reviewed: Boolean(game.reviewed),
     xpAward: game.xpAward ?? null
   };
+}
+
+function cleanUciMoves(moves: string[]) {
+  return moves.filter(isUciMove).map((move) => move.toLowerCase());
 }
 
 function dedupeGames(games: SavedGame[]) {

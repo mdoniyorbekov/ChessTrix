@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useMemo, useState } from "react";
 import { calculateArchiveStats, deleteGame, getGames, inferHumanResult, toggleFavoriteGame, type SavedGame } from "../../game/platform/archive";
 import { getTournaments, standingsFor } from "../../game/platform/tournaments";
 import { formatTimeControl } from "../../game/timeControls";
+import { useMoveReplayKeys } from "../../hooks/useMoveReplayKeys";
 import { ChessBoard } from "../board/ChessBoard";
 import { Badge } from "../common/Badge";
 import { Button } from "../common/Button";
@@ -21,6 +22,7 @@ export function ArchiveScreen({ onReview }: ArchiveScreenProps) {
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("newest");
   const [ply, setPly] = useState(0);
+  const [animationMove, setAnimationMove] = useState<{ from: string; to: string } | null>(null);
   const [copyState, setCopyState] = useState("Copy PGN");
   const [revision, setRevision] = useState(0);
 
@@ -47,8 +49,16 @@ export function ArchiveScreen({ onReview }: ArchiveScreenProps) {
   const tournamentPodiums = tournaments.filter((tournament) => tournament.status === "completed" && standingsFor(tournament).slice(0, 3).some((standing) => standing.participant.type === "human")).length;
   const boardChess = useMemo(() => chessAtPly(selected, ply), [selected, ply]);
 
+  const setReplayPly = (nextPly: number) => {
+    if (selected) setAnimationMove(getArchiveReplayAnimationMove(selected, ply, nextPly));
+    setPly(nextPly);
+  };
+
+  useMoveReplayKeys({ index: ply, maxIndex: selected?.moves.length ?? 0, onChange: setReplayPly, enabled: Boolean(selected) });
+
   useEffect(() => {
     setPly(0);
+    setAnimationMove(null);
     setCopyState("Copy PGN");
   }, [selected?.id]);
 
@@ -174,16 +184,16 @@ export function ArchiveScreen({ onReview }: ArchiveScreenProps) {
               <Metric label="Final FEN" value={<code>{selected.finalFen || "Unavailable"}</code>} />
             </div>
             <div className="archive-replay">
-              <ChessBoard chess={boardChess} size={420} disabled lastMove={lastMoveAt(selected, ply)} />
+              <ChessBoard chess={boardChess} size={420} disabled lastMove={lastMoveAt(selected, ply)} animationMove={animationMove} />
               <div className="archive-moves">
                 <div className="archive-replay-controls">
-                  <Button variant="ghost" icon={<ChevronFirst />} disabled={ply <= 0} onClick={() => setPly(0)}>First</Button>
-                  <Button variant="ghost" disabled={ply <= 0} onClick={() => setPly(Math.max(0, ply - 1))}>Back</Button>
+                  <Button variant="ghost" icon={<ChevronFirst />} disabled={ply <= 0} onClick={() => setReplayPly(0)}>First</Button>
+                  <Button variant="ghost" disabled={ply <= 0} onClick={() => setReplayPly(Math.max(0, ply - 1))}>Back</Button>
                   <span>{ply} / {selected.moves.length}</span>
-                  <Button variant="ghost" disabled={ply >= selected.moves.length} onClick={() => setPly(Math.min(selected.moves.length, ply + 1))}>Next</Button>
-                  <Button variant="ghost" icon={<ChevronLast />} disabled={ply >= selected.moves.length} onClick={() => setPly(selected.moves.length)}>Last</Button>
+                  <Button variant="ghost" disabled={ply >= selected.moves.length} onClick={() => setReplayPly(Math.min(selected.moves.length, ply + 1))}>Next</Button>
+                  <Button variant="ghost" icon={<ChevronLast />} disabled={ply >= selected.moves.length} onClick={() => setReplayPly(selected.moves.length)}>Last</Button>
                 </div>
-                <input className="archive-ply-slider" type="range" min={0} max={selected.moves.length} value={ply} onChange={(event) => setPly(Number(event.target.value))} />
+                <input className="archive-ply-slider" type="range" min={0} max={selected.moves.length} value={ply} onChange={(event) => setReplayPly(Number(event.target.value))} />
                 <pre>{selected.pgn}</pre>
               </div>
             </div>
@@ -245,6 +255,15 @@ function lastMoveAt(game: SavedGame, ply: number) {
   if (ply <= 0) return null;
   const uci = game.moves[ply - 1];
   return uci ? { from: uci.slice(0, 2), to: uci.slice(2, 4) } : null;
+}
+
+function getArchiveReplayAnimationMove(game: SavedGame, currentPly: number, nextPly: number) {
+  if (nextPly < currentPly) {
+    const undone = lastMoveAt(game, currentPly);
+    return undone ? { from: undone.to, to: undone.from } : null;
+  }
+  if (nextPly > currentPly) return lastMoveAt(game, nextPly);
+  return null;
 }
 
 function formatAccuracy(game: SavedGame) {
