@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Plus, X } from "lucide-react";
+import { Check, Pencil, Plus, X } from "lucide-react";
 import { themes } from "../../theme/themes";
 import { useTheme } from "../../theme/ThemeProvider";
 import { publicAssetUrl } from "../../theme/assetPath";
@@ -113,72 +113,37 @@ export function SettingsScreen() {
 
   return (
     <div className="settings-screen">
-      <section className="settings-grid">
-        {themes.map((item) => (
-          <ThemeCard key={item.id} theme={item} selected={item.id === theme.id} onSelect={() => setThemeId(item.id)} />
-        ))}
-      </section>
+      <section className="settings-main">
+        <section className="settings-section">
+          <h2>Boards</h2>
+          <div className="settings-grid">
+            {themes.map((item) => (
+              <ThemeCard key={item.id} theme={item} selected={item.id === theme.id} onSelect={() => setThemeId(item.id)} />
+            ))}
+          </div>
+        </section>
 
-      <section className="settings-side">
-        <Card>
-          <h2>Board Preview</h2>
-          <div
-            className={`board-preview ${theme.boardImage ? "board-preview--image" : ""}`}
-            style={theme.boardImage ? { backgroundImage: `url("${publicAssetUrl(theme.boardImage)}")` } : undefined}
-          >
-            {!theme.boardImage && Array.from({ length: 64 }).map((_, index) => <span key={index} />)}
-          </div>
-        </Card>
-        <Card>
-          <h2>Preferences</h2>
-          <div className="toggle-list">
-            {toggles.map((toggle) => (
-              <label key={toggle} className="toggle-row">
-                <span>{toggle}</span>
-                <input type="checkbox" checked={Boolean(settings[toggle])} onChange={() => update(toggle)} />
-              </label>
-            ))}
-          </div>
-        </Card>
-        <Card>
-          <h2>Time Control</h2>
-          <div className="time-settings">
-            <Badge>{timeControl.name}</Badge>
-            <div className="time-preset-grid">
-              {timeControlPresets.map((preset) => (
-                <button key={preset.id} className={preset.id === timeControl.id ? "active" : ""} onClick={() => chooseTimeControl(preset)}>
-                  {formatTimeControl(preset)}
-                </button>
-              ))}
-            </div>
-            <div className="custom-time-row">
-              <label>
-                Minutes
-                <input type="number" min="1" max="180" value={customMinutes} onChange={(event) => setCustomMinutes(event.target.value)} />
-              </label>
-              <label>
-                Increment
-                <input type="number" min="0" max="120" value={customIncrement} onChange={(event) => setCustomIncrement(event.target.value)} />
-              </label>
-            </div>
-            <Button variant="secondary" onClick={saveCustomTimeControl}>Save Custom</Button>
-          </div>
-        </Card>
-        <Card>
+        <section className="settings-section">
           <h2>Pieces</h2>
-          <div className="piece-set-grid">
+          <div className="settings-grid">
             {pieceSets.map((set) => (
-              <button key={set.id} className={set.id === pieceSet ? "active" : ""} onClick={() => choosePieceSet(set.id)}>
-                <span className="piece-set-preview">
-                  <Piece color="w" type="n" size={30} pieceSetOverride={set.id} />
-                  <Piece color="b" type="q" size={30} pieceSetOverride={set.id} />
-                </span>
-                <strong>{set.name}</strong>
-                <small>{set.description}</small>
-              </button>
+              <Card key={set.id} className={`theme-card piece-style-card ${set.id === pieceSet ? "theme-card--selected" : ""}`}>
+                <div className="piece-style-card__preview">
+                  <Piece color="w" type="k" size={42} pieceSetOverride={set.id} />
+                  <Piece color="b" type="q" size={42} pieceSetOverride={set.id} />
+                </div>
+                <div>
+                  <h3>{set.name}</h3>
+                  <p>Piece style</p>
+                </div>
+                <Button variant={set.id === pieceSet ? "primary" : "secondary"} icon={set.id === pieceSet ? <Check /> : undefined} onClick={() => choosePieceSet(set.id)}>
+                  {set.id === pieceSet ? "Selected" : "Select"}
+                </Button>
+              </Card>
             ))}
           </div>
-        </Card>
+        </section>
+
         <Card>
           <div className="bot-manager__header">
             <div>
@@ -276,12 +241,52 @@ export function SettingsScreen() {
             </div>
           )}
         </Card>
+
+      </section>
+
+      <section className="settings-side">
         <Card>
-          <h2>Assets</h2>
-          <div className="asset-info">
-            <Badge>Logo installed</Badge>
-            <Badge tone="muted">PNG piece sets</Badge>
-            <Badge tone="info">Mode icons installed</Badge>
+          <h2>Board Preview</h2>
+          <div
+            className={`board-preview ${theme.boardImage ? "board-preview--image" : ""}`}
+            style={theme.boardImage ? { backgroundImage: `url("${publicAssetUrl(theme.boardImage)}")` } : undefined}
+          >
+            {!theme.boardImage && Array.from({ length: 64 }).map((_, index) => <span key={index} />)}
+          </div>
+        </Card>
+        <Card>
+          <h2>Preferences</h2>
+          <div className="toggle-list">
+            {toggles.map((toggle) => (
+              <label key={toggle} className="toggle-row">
+                <span>{toggle}</span>
+                <input type="checkbox" checked={Boolean(settings[toggle])} onChange={() => update(toggle)} />
+              </label>
+            ))}
+          </div>
+        </Card>
+        <Card>
+          <h2>Time Control</h2>
+          <div className="time-settings">
+            <Badge>{timeControl.name}</Badge>
+            <div className="time-preset-grid">
+              {timeControlPresets.map((preset) => (
+                <button key={preset.id} className={preset.id === timeControl.id ? "active" : ""} onClick={() => chooseTimeControl(preset)}>
+                  {formatTimeControl(preset)}
+                </button>
+              ))}
+            </div>
+            <div className="custom-time-row">
+              <label>
+                Minutes
+                <input type="number" min="1" max="180" value={customMinutes} onChange={(event) => setCustomMinutes(event.target.value)} />
+              </label>
+              <label>
+                Increment
+                <input type="number" min="0" max="120" value={customIncrement} onChange={(event) => setCustomIncrement(event.target.value)} />
+              </label>
+            </div>
+            <Button variant="secondary" onClick={saveCustomTimeControl}>Save Custom</Button>
           </div>
         </Card>
       </section>

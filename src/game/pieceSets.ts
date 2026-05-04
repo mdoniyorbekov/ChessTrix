@@ -2,7 +2,6 @@ export type PieceSet = {
   id: string;
   name: string;
   folder: string;
-  description: string;
 };
 
 export const pieceSetStorageKey = "chesstrix.pieceSet";
@@ -44,15 +43,13 @@ const assetPieceFolders = [
   "lolz",
   "neon",
   "tigers",
-  "game_room",
-  "blindfold"
+  "game_room"
 ];
 
 export const pieceSets: PieceSet[] = assetPieceFolders.map((folder) => ({
   id: `asset-${folder.replace(/_/g, "-")}`,
   folder,
-  name: formatPieceSetName(folder),
-  description: "PNG piece set from local assets"
+  name: formatPieceSetName(folder)
 }));
 
 export function getSavedPieceSet() {

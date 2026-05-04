@@ -1,6 +1,4 @@
-import { Settings } from "lucide-react";
 import { useState } from "react";
-import { Button } from "../common/Button";
 import { Card } from "../common/Card";
 import { Badge } from "../common/Badge";
 import { getSavedTimeControl, saveTimeControl, timeControlPresets, formatTimeControl } from "../../game/timeControls";
@@ -9,12 +7,11 @@ import { ModeCard } from "./ModeCard";
 import "./menu.css";
 
 type MainMenuProps = {
-  onPlay: () => void;
   onSettings: () => void;
   onRoute: (mode: string) => void;
 };
 
-export function MainMenu({ onPlay, onSettings, onRoute }: MainMenuProps) {
+export function MainMenu({ onSettings, onRoute }: MainMenuProps) {
   const [timeControl, setTimeControl] = useState(getSavedTimeControl);
   const modes = [
     ["Two Player", "Classic local chess", "normal", "app-assets/menu-icons/Two Player.png"],
@@ -37,19 +34,6 @@ export function MainMenu({ onPlay, onSettings, onRoute }: MainMenuProps) {
 
   return (
     <div className="main-menu main-menu--launcher">
-      <section className="menu-hero">
-        <div>
-          <img className="menu-logo" src={publicAssetUrl("app-assets/chesstrix-logo-horizontal.png?v=20260504-transparent")} alt="Chesstrix" />
-          <p>Chess arena</p>
-        </div>
-        <div className="menu-hero__actions">
-          <Button onClick={onPlay}>Play</Button>
-          <Button variant="secondary" icon={<Settings />} onClick={onSettings}>
-            Settings
-          </Button>
-        </div>
-      </section>
-
       <section className="menu-grid">
         {modes.map(([title, description, route, image]) => (
           <ModeCard key={title} title={title} description={description} imageSrc={publicAssetUrl(image)} onClick={() => onRoute(route)} />
@@ -70,6 +54,10 @@ export function MainMenu({ onPlay, onSettings, onRoute }: MainMenuProps) {
           <button onClick={onSettings}>Custom</button>
         </div>
       </Card>
+
+      <footer className="main-menu__footer-logo">
+        <img className="menu-logo" src={publicAssetUrl("app-assets/chesstrix-logo-horizontal.png?v=20260504-transparent")} alt="Chesstrix" />
+      </footer>
     </div>
   );
 }

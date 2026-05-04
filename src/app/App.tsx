@@ -51,7 +51,6 @@ export function App() {
   const [route, setRoute] = useState<AppRoute>(initialRoute);
   useLiveBotGameRunner();
   const goMenu = () => setRoute({ screen: "main-menu" });
-  const goModes = () => setRoute({ screen: "mode-selection" });
   const goSettings = () => setRoute({ screen: "settings" });
 
   if (route.screen === "splash") {
@@ -66,7 +65,7 @@ export function App() {
 
   return (
     <AppShell title={shellTitle} onBack={route.screen === "main-menu" ? undefined : goMenu} onSettings={goSettings}>
-      {route.screen === "main-menu" && <MainMenu onPlay={goModes} onSettings={goSettings} onRoute={(mode) => navigateMode(mode, setRoute)} />}
+      {route.screen === "main-menu" && <MainMenu onSettings={goSettings} onRoute={(mode) => navigateMode(mode, setRoute)} />}
       {route.screen === "mode-selection" && <ModeSelection onSelect={(mode) => navigateMode(mode, setRoute)} />}
       {route.screen === "settings" && <SettingsScreen />}
       {route.screen === "analysis" && <AnalysisScreen onRunReview={(reviewMoves, reviewInitialFen) => setRoute({ screen: "review", moves: reviewMoves, initialFen: reviewInitialFen })} />}

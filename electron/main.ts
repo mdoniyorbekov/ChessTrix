@@ -21,6 +21,8 @@ const createWindow = async () => {
     }
   });
 
+  registerZoomShortcuts(win);
+
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
     await win.loadURL(devUrl);
@@ -29,6 +31,31 @@ const createWindow = async () => {
     await win.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 };
+
+function registerZoomShortcuts(win: BrowserWindow) {
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown" || !(input.control || input.meta)) return;
+
+    const key = input.key.toLowerCase();
+    const code = input.code;
+    const isZoomIn = key === "+" || key === "=" || code === "Equal" || code === "NumpadAdd";
+    const isZoomOut = key === "-" || key === "_" || code === "Minus" || code === "NumpadSubtract";
+    const isReset = key === "0" || code === "Digit0" || code === "Numpad0";
+
+    if (!isZoomIn && !isZoomOut && !isReset) return;
+
+    event.preventDefault();
+    if (isReset) {
+      win.webContents.setZoomFactor(1);
+      return;
+    }
+
+    const current = win.webContents.getZoomFactor();
+    const delta = isZoomIn ? 0.1 : -0.1;
+    const next = Math.min(2, Math.max(0.5, Math.round((current + delta) * 10) / 10));
+    win.webContents.setZoomFactor(next);
+  });
+}
 
 app.whenReady().then(async () => {
   app.setAppUserModelId("com.chesstrix.app");
